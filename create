@@ -1,0 +1,120 @@
+// ==UserScript==
+// @name         VLCM Auto Register & Manager
+// @namespace    http://tampermonkey.net/
+// @version      1.0
+// @description  Menu đăng ký tài khoản và quản lý danh sách cho VLCM
+// @author       Gemini
+// @match        https://vlcm.zing.vn/*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // Tạo CSS cho giao diện
+    const style = document.createElement('style');
+    style.innerHTML = `
+        #gemini-menu { position: fixed; top: 10px; right: 10px; z-index: 10001; background: #5694cf; color: white; padding: 10px; border-radius: 5px; cursor: pointer; font-family: Arial; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; display: none; justify-content: center; align-items: center; font-family: 'Arial', sans-serif; }
+        .modal-box { background: #fff; width: 380px; border-radius: 4px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .modal-header { display: flex; background: #5694cf; height: 45px; line-height: 45px; }
+        .tab-active { flex: 1; background: #fff; color: #1e5a96; font-weight: bold; text-align: center; border-top: 3px solid #5694cf; }
+        .tab-link { flex: 1.5; color: #fff; text-align: center; text-decoration: underline; cursor: pointer; font-size: 14px; }
+        .close-btn { width: 40px; color: #fff; text-align: center; cursor: pointer; font-size: 20px; }
+        .modal-body { padding: 30px 25px; }
+        .modal-body input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; background: #f2f2f2; font-style: italic; box-sizing: border-box; }
+        .btn-action { width: 100%; padding: 12px; background: #5694cf; border: none; color: #fff; font-size: 18px; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; }
+        .list-container { max-height: 200px; overflow-y: auto; color: #333; font-size: 13px; border-top: 1px solid #eee; padding-top: 10px; display: none; }
+        .account-item { border-bottom: 1px solid #eee; padding: 5px 0; display: flex; justify-content: space-between; }
+    `;
+    document.head.appendChild(style);
+
+    // Tạo HTML
+    const html = `
+    <div id="gemini-menu">Menu Tài Khoản</div>
+    <div class="modal-overlay" id="regModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="tab-active">Đăng ký</div>
+                <div class="tab-link">Đã có tài khoản Zing</div>
+                <div class="close-btn" id="closeModal">✕</div>
+            </div>
+            <div class="modal-body">
+                <div id="formFields">
+                    <input type="text" id="regUser" placeholder="Tài khoản">
+                    <input type="password" id="regPass" placeholder="Mật khẩu">
+                    <input type="password" id="regRePass" placeholder="Xác nhận mật khẩu">
+                    <button class="btn-action" id="submitReg">Đăng ký</button>
+                    <button class="btn-action" style="background: #28a745;" id="toggleList">Xem danh sách</button>
+                </div>
+                
+                <div id="accountList" class="list-container">
+                    <strong>Danh sách đã lưu:</strong>
+                    <div id="listContent"></div>
+                </div>
+
+                <div style="margin-top: 15px; font-size: 11px; color: #888;">
+                    <input type="checkbox" checked> Tôi đồng ý với <span style="color: #5694cf;">Điều khoản sử dụng</span>
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    document.body.appendChild(container);
+
+    // Xử lý sự kiện
+    const modal = document.getElementById('regModal');
+    const listContent = document.getElementById('listContent');
+    const accList = document.getElementById('accountList');
+
+    document.getElementById('gemini-menu').onclick = () => modal.style.display = 'flex';
+    document.getElementById('closeModal').onclick = () => modal.style.display = 'none';
+
+    // Hàm hiển thị danh sách
+    function updateList() {
+        const accounts = JSON.parse(localStorage.getItem('zing_accounts') || '[]');
+        listContent.innerHTML = accounts.map(acc => `
+            <div class="account-item">
+                <span>User: <b>${acc.user}</b></span>
+                <span style="color: #999;">${acc.date}</span>
+            </div>
+        `).join('') || 'Chưa có tài khoản nào.';
+    }
+
+    // Nút xem danh sách
+    document.getElementById('toggleList').onclick = function() {
+        const isHidden = accList.style.display === 'none' || accList.style.display === '';
+        accList.style.display = isHidden ? 'block' : 'none';
+        this.innerText = isHidden ? 'Ẩn danh sách' : 'Xem danh sách';
+        updateList();
+    };
+
+    // Nút Đăng ký
+    document.getElementById('submitReg').onclick = function() {
+        const user = document.getElementById('regUser').value;
+        const pass = document.getElementById('regPass').value;
+        const repass = document.getElementById('regRePass').value;
+
+        if(!user || !pass) return alert('Vui lòng nhập đủ tin!');
+        if(pass !== repass) return alert('Mật khẩu không khớp!');
+
+        let accounts = JSON.parse(localStorage.getItem('zing_accounts') || '[]');
+        accounts.push({
+            user: user,
+            pass: pass,
+            date: new Date().toLocaleString('vi-VN')
+        });
+
+        localStorage.setItem('zing_accounts', JSON.stringify(accounts));
+        alert('Tạo tài khoản thành công và đã lưu vào danh sách!');
+        
+        // Reset form
+        document.getElementById('regUser').value = '';
+        document.getElementById('regPass').value = '';
+        document.getElementById('regRePass').value = '';
+        updateList();
+    };
+})();
+
