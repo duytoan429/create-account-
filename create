@@ -1,83 +1,115 @@
 // ==UserScript==
-// @name         ZingID Auto Register & Manager (VLCM)
+// @name         VLCM - Chỉ Điền Form Đăng Ký
 // @namespace    http://tampermonkey.net/
-// @version      2.5
-// @description  Menu đăng ký và quản lý tài khoản ngay trên vlcm.zing.vn
+// @version      1.0
+// @description  Tự động điền 3 ô đăng ký ZingID và lưu danh sách (Không tự nhấn nút)
 // @author       Gemini
-// @match        https://vlcm.zing.vn/*
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=zing.vn
+// @match        http://vlcm.zing.vn/*
+// @match        https://account.id.zing.vn/*
 // @grant        none
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    // Thêm CSS để giao diện giống hệt ảnh mẫu
+    // 1. Tạo Giao diện Menu
     const style = document.createElement('style');
     style.innerHTML = `
-        #gemini-btn { position: fixed; bottom: 20px; right: 20px; z-index: 99999; background: #5694cf; color: white; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-family: Arial; font-weight: bold; border: 2px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
-        .zm-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 100000; display: none; justify-content: center; align-items: center; }
-        .zm-box { background: #fff; width: 380px; border-radius: 4px; overflow: hidden; font-family: Tahoma, sans-serif; }
-        .zm-head { display: flex; background: #5694cf; height: 45px; line-height: 45px; color: #fff; }
-        .zm-tab-on { flex: 1; background: #fff; color: #1e5a96; font-weight: bold; text-align: center; border-top: 3px solid #5694cf; }
-        .zm-tab-off { flex: 1.5; text-align: center; text-decoration: underline; cursor: pointer; font-size: 14px; }
-        .zm-close { width: 40px; text-align: center; cursor: pointer; font-size: 20px; }
-        .zm-body { padding: 30px 25px; }
-        .zm-input { width: 100%; height: 40px; margin-bottom: 15px; padding: 0 10px; border: 1px solid #ccc; border-radius: 4px; background: #f2f2f2; font-style: italic; box-sizing: border-box; }
-        .zm-btn-reg { width: 100%; height: 45px; background: linear-gradient(to bottom, #7bb7f0, #4c8fd1); border: 1px solid #3c78b5; color: #fff; font-size: 18px; font-weight: bold; border-radius: 4px; cursor: pointer; }
-        .zm-btn-list { width: 100%; height: 35px; background: #28a745; border: none; color: #fff; margin-top: 10px; border-radius: 4px; cursor: pointer; }
-        .zm-list-area { max-height: 150px; overflow-y: auto; margin-top: 15px; border-top: 1px solid #eee; display: none; }
-        .acc-row { font-size: 12px; padding: 5px 0; border-bottom: 1px solid #f9f9f9; color: #333; }
+        #tm-vlcm-box {
+            position: fixed; top: 10px; left: 10px; z-index: 2147483647;
+            background: #1a1a1a; color: #ffcc00; padding: 15px; border: 2px solid #3498db;
+            width: 260px; border-radius: 10px; font-family: Arial, sans-serif; box-shadow: 0 0 20px #000;
+        }
+        .tm-btn { 
+            width: 100%; padding: 12px; background: #e67e22; color: white; 
+            border: none; font-weight: bold; cursor: pointer; border-radius: 5px; margin-top: 10px; 
+        }
+        .tm-btn:hover { background: #d35400; }
+        #tm-list { 
+            margin-top: 15px; background: #fff; color: #333; padding: 10px; 
+            border-radius: 5px; max-height: 300px; overflow-y: auto; font-size: 12px;
+        }
+        .acc-row { 
+            border-bottom: 1px solid #ddd; padding: 6px 0; font-weight: bold; 
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .copy-hint { color: #3498db; font-size: 10px; cursor: pointer; }
     `;
     document.head.appendChild(style);
 
-    // Tạo HTML
-    const div = document.createElement('div');
-    div.innerHTML = `
-        <div id="gemini-btn">MENU TÀI KHOẢN</div>
-        <div class="zm-overlay" id="zmOverlay">
-            <div class="zm-box">
-                <div class="zm-head">
-                    <div class="zm-tab-on">Đăng ký</div>
-                    <div class="zm-tab-off">Đã có tài khoản Zing</div>
-                    <div class="zm-close" id="zmClose">✕</div>
-                </div>
-                <div class="zm-body">
-                    <input type="text" id="u" class="zm-input" placeholder="Tài khoản">
-                    <input type="password" id="p" class="zm-input" placeholder="Mật khẩu">
-                    <input type="password" id="rp" class="zm-input" placeholder="Xác nhận mật khẩu">
-                    <button class="zm-btn-reg" id="doReg">Đăng ký</button>
-                    <button class="zm-btn-list" id="doView">Xem danh sách</button>
-                    <div class="zm-list-area" id="zmList"></div>
-                    <div style="margin-top:10px; font-size:11px; color:#888;">
-                        <input type="checkbox" checked> Tôi đồng ý với Điều khoản sử dụng
-                    </div>
-                </div>
-            </div>
-        </div>
+    const menu = document.createElement('div');
+    menu.id = 'tm-vlcm-box';
+    menu.innerHTML = `
+        <div style="text-align:center; color:#3498db; font-weight:bold;">VLCM TOOL - TAMPERMONKEY</div>
+        <button class="tm-btn" id="tm-fill-btn">⚡ ĐIỀN THÔNG TIN NGAY</button>
+        <div id="tm-list"><b>DANH SÁCH ĐÃ ĐIỀN:</b><div id="tm-real-list"></div></div>
     `;
-    document.body.appendChild(div);
+    document.body.appendChild(menu);
 
-    // Logic xử lý
-    const overlay = document.getElementById('zmOverlay');
-    const listArea = document.getElementById('zmList');
-
-    document.getElementById('gemini-btn').onclick = () => overlay.style.display = 'flex';
-    document.getElementById('zmClose').onclick = () => overlay.style.display = 'none';
-
-    document.getElementById('doReg').onclick = () => {
-        const user = document.getElementById('u').value;
-        const pass = document.getElementById('p').value;
-        if(!user || !pass) return alert("Vui lòng nhập đủ thông tin!");
-        let data = JSON.parse(localStorage.getItem('zing_data') || '[]');
-        data.push({u: user, p: pass, t: new Date().toLocaleString()});
-        localStorage.setItem('zing_data', JSON.stringify(data));
-        alert("Đã lưu tài khoản thành công!");
+    // 2. Quản lý dữ liệu
+    let accStore = JSON.parse(localStorage.getItem('vlcm_tamper_acc') || '[]');
+    
+    const refreshUI = () => {
+        const listDiv = document.getElementById('tm-real-list');
+        listDiv.innerHTML = accStore.map((a, i) => `
+            <div class="acc-row">
+                <span>${i+1}. ${a}</span>
+            </div>
+        `).join('');
+        document.getElementById('tm-list').scrollTop = document.getElementById('tm-list').scrollHeight;
     };
+    refreshUI();
 
-    document.getElementById('doView').onclick = () => {
-        listArea.style.display = listArea.style.display === 'block' ? 'none' : 'block';
-        const data = JSON.parse(localStorage.getItem('zing_data') || '[]');
-        listArea.innerHTML = data.map(i => `<div class="acc-row"><b>${i.u}</b> | ${i.p} (${i.t})</div>`).join('') || "Chưa có dữ liệu.";
+    // 3. Logic Điền Form
+    function fillForm(doc) {
+        // Lọc 3 ô nhập liệu chính ở giữa bảng trắng
+        const inputs = Array.from(doc.querySelectorAll('input')).filter(i => {
+            const r = i.getBoundingClientRect();
+            const isVisible = r.width > 0 && r.height > 25;
+            const isCentered = r.left > window.innerWidth / 5;
+            return isVisible && isCentered && (i.type === 'text' || i.type === 'password');
+        });
+
+        if (inputs.length >= 3) {
+            const u = "vl" + Math.random().toString(36).substring(2, 9);
+            const p = "duytoan20009";
+
+            // Điền 3 ô
+            inputs[0].value = u;
+            inputs[1].value = p;
+            inputs[2].value = p;
+
+            // Tích điều khoản
+            const cb = doc.querySelector('input[type="checkbox"]');
+            if (cb) cb.checked = true;
+
+            // Kích hoạt sự kiện
+            inputs.forEach(i => {
+                i.dispatchEvent(new Event('input', { bubbles: true }));
+                i.dispatchEvent(new Event('change', { bubbles: true }));
+            });
+
+            // Lưu dữ liệu
+            accStore.push(`${u} | ${p}`);
+            localStorage.setItem('vlcm_tamper_acc', JSON.stringify(accStore));
+            refreshUI();
+
+            console.log("Tampermonkey: Đã điền xong " + u);
+            return true;
+        }
+        return false;
+    }
+
+    // 4. Sự kiện nút bấm
+    document.getElementById('tm-fill-btn').onclick = () => {
+        let done = false;
+        // Quét tất cả iframe
+        document.querySelectorAll('iframe').forEach(f => {
+            try { if(fillForm(f.contentWindow.document)) done = true; } catch(e) {}
+        });
+        // Quét trang chính
+        if (!done) {
+            if(!fillForm(document)) alert("Vui lòng mở bảng Đăng ký màu trắng trước!");
+        }
     };
 })();
