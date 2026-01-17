@@ -1,0 +1,86 @@
+// ==UserScript==
+// @name         ZingID Auto Register & Manager (VLCM)
+// @namespace    http://tampermonkey.net/
+// @version      2.1
+// @description  Hỗ trợ tạo và quản lý tài khoản cho Võ Lâm Chi Mộng
+// @author       Gemini
+// @match        https://vlcm.zing.vn/*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=zing.vn
+// @grant        none
+// @downloadURL  https://example.com/vlcm.user.js
+// @updateURL    https://example.com/vlcm.user.js
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // CSS Giao diện
+    const style = document.createElement('style');
+    style.innerHTML = `
+        #gemini-floating-btn { position: fixed; bottom: 20px; right: 20px; z-index: 99999; background: #5694cf; color: white; padding: 12px 20px; border-radius: 50px; cursor: pointer; font-family: Arial; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: 2px solid white; }
+        .zm-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 100000; display: none; justify-content: center; align-items: center; font-family: 'Tahoma', sans-serif; }
+        .zm-modal { background: #fff; width: 380px; border-radius: 6px; overflow: hidden; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
+        .zm-header { display: flex; background: #5694cf; height: 50px; line-height: 50px; }
+        .zm-tab { flex: 1; background: #fff; color: #1e5a96; font-weight: bold; text-align: center; border-top: 3px solid #5694cf; }
+        .zm-link { flex: 1.5; color: #fff; text-align: center; text-decoration: underline; cursor: pointer; font-size: 13px; }
+        .zm-close { width: 45px; color: #fff; text-align: center; cursor: pointer; font-size: 22px; }
+        .zm-body { padding: 25px; }
+        .zm-input { width: 100%; height: 42px; padding: 0 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; box-sizing: border-box; }
+        .zm-btn { width: 100%; height: 45px; border: none; color: white; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 16px; }
+        .btn-reg { background: linear-gradient(to bottom, #7bb7f0, #4c8fd1); border: 1px solid #3c78b5; }
+        .btn-view { background: #28a745; }
+        .zm-list { max-height: 200px; overflow-y: auto; margin-top: 15px; border: 1px solid #eee; padding: 10px; display: none; background: #fff; }
+        .acc-item { font-size: 12px; padding: 8px 0; border-bottom: 1px solid #f1f1f1; color: #333; display: flex; justify-content: space-between; }
+    `;
+    document.head.appendChild(style);
+
+    // HTML Giao diện
+    const container = document.createElement('div');
+    container.innerHTML = `
+        <div id="gemini-floating-btn">QUẢN LÝ TÀI KHOẢN</div>
+        <div class="zm-overlay" id="zmOverlay">
+            <div class="zm-modal">
+                <div class="zm-header">
+                    <div class="zm-tab">Đăng ký</div>
+                    <div class="zm-link">Đã có tài khoản Zing</div>
+                    <div class="zm-close" id="zmClose">✕</div>
+                </div>
+                <div class="zm-body">
+                    <input type="text" id="zmUser" class="zm-input" placeholder="Tài khoản">
+                    <input type="password" id="zmPass" class="zm-input" placeholder="Mật khẩu">
+                    <input type="password" id="zmRePass" class="zm-input" placeholder="Xác nhận mật khẩu">
+                    <button class="zm-btn btn-reg" id="zmSubmit">ĐĂNG KÝ NGAY</button>
+                    <button class="zm-btn btn-view" id="zmToggleList">XEM DANH SÁCH</button>
+                    <div class="zm-list" id="zmListArea">
+                        <div id="zmListContent"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(container);
+
+    // Logic điều khiển
+    const overlay = document.getElementById('zmOverlay');
+    const listArea = document.getElementById('zmListArea');
+    const listContent = document.getElementById('zmListContent');
+
+    document.getElementById('gemini-floating-btn').onclick = () => overlay.style.display = 'flex';
+    document.getElementById('zmClose').onclick = () => overlay.style.display = 'none';
+
+    document.getElementById('zmSubmit').onclick = () => {
+        const u = document.getElementById('zmUser').value;
+        const p = document.getElementById('zmPass').value;
+        if(!u || !p) return alert("Nhập đủ tin!");
+        let accs = JSON.parse(localStorage.getItem('my_zing_accs') || '[]');
+        accs.push({ u, p, d: new Date().toLocaleDateString() });
+        localStorage.setItem('my_zing_accs', JSON.stringify(accs));
+        alert("Đã lưu!");
+    };
+
+    document.getElementById('zmToggleList').onclick = () => {
+        listArea.style.display = listArea.style.display === 'block' ? 'none' : 'block';
+        const accs = JSON.parse(localStorage.getItem('my_zing_accs') || '[]');
+        listContent.innerHTML = accs.map(a => `<div class="acc-item"><span>${a.u} | ${a.p}</span></div>`).join('');
+    };
+})();
