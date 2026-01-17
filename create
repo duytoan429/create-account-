@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         ZingID Auto Register & Manager (VLCM)
 // @namespace    http://tampermonkey.net/
-// @version      2.2
-// @description  Hỗ trợ tạo và quản lý tài khoản cho Võ Lâm Chi Mộng
+// @version      2.5
+// @description  Menu đăng ký và quản lý tài khoản ngay trên vlcm.zing.vn
 // @author       Gemini
 // @match        https://vlcm.zing.vn/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=zing.vn
@@ -11,58 +11,73 @@
 
 (function() {
     'use strict';
-    // Mã nguồn xử lý giao diện Menu đã được tối ưu
+
+    // Thêm CSS để giao diện giống hệt ảnh mẫu
     const style = document.createElement('style');
     style.innerHTML = `
-        #gemini-floating-btn { position: fixed; bottom: 20px; right: 20px; z-index: 99999; background: #5694cf; color: white; padding: 12px 20px; border-radius: 50px; cursor: pointer; font-family: Arial; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); border: 2px solid white; }
-        .zm-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); z-index: 100000; display: none; justify-content: center; align-items: center; font-family: 'Tahoma', sans-serif; }
-        .zm-modal { background: #fff; width: 380px; border-radius: 6px; overflow: hidden; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
-        .zm-header { display: flex; background: #5694cf; height: 50px; line-height: 50px; }
-        .zm-tab { flex: 1; background: #fff; color: #1e5a96; font-weight: bold; text-align: center; border-top: 3px solid #5694cf; }
-        .zm-link { flex: 1.5; color: #fff; text-align: center; text-decoration: underline; cursor: pointer; font-size: 13px; }
-        .zm-close { width: 45px; color: #fff; text-align: center; cursor: pointer; font-size: 22px; }
-        .zm-body { padding: 25px; }
-        .zm-input { width: 100%; height: 42px; padding: 0 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; box-sizing: border-box; }
-        .zm-btn { width: 100%; height: 45px; border: none; color: white; font-weight: bold; border-radius: 4px; cursor: pointer; margin-bottom: 10px; font-size: 16px; }
-        .btn-reg { background: linear-gradient(to bottom, #7bb7f0, #4c8fd1); border: 1px solid #3c78b5; }
-        .btn-view { background: #28a745; }
-        .zm-list { max-height: 200px; overflow-y: auto; margin-top: 15px; border: 1px solid #eee; padding: 10px; display: none; background: #fff; }
+        #gemini-btn { position: fixed; bottom: 20px; right: 20px; z-index: 99999; background: #5694cf; color: white; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-family: Arial; font-weight: bold; border: 2px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .zm-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 100000; display: none; justify-content: center; align-items: center; }
+        .zm-box { background: #fff; width: 380px; border-radius: 4px; overflow: hidden; font-family: Tahoma, sans-serif; }
+        .zm-head { display: flex; background: #5694cf; height: 45px; line-height: 45px; color: #fff; }
+        .zm-tab-on { flex: 1; background: #fff; color: #1e5a96; font-weight: bold; text-align: center; border-top: 3px solid #5694cf; }
+        .zm-tab-off { flex: 1.5; text-align: center; text-decoration: underline; cursor: pointer; font-size: 14px; }
+        .zm-close { width: 40px; text-align: center; cursor: pointer; font-size: 20px; }
+        .zm-body { padding: 30px 25px; }
+        .zm-input { width: 100%; height: 40px; margin-bottom: 15px; padding: 0 10px; border: 1px solid #ccc; border-radius: 4px; background: #f2f2f2; font-style: italic; box-sizing: border-box; }
+        .zm-btn-reg { width: 100%; height: 45px; background: linear-gradient(to bottom, #7bb7f0, #4c8fd1); border: 1px solid #3c78b5; color: #fff; font-size: 18px; font-weight: bold; border-radius: 4px; cursor: pointer; }
+        .zm-btn-list { width: 100%; height: 35px; background: #28a745; border: none; color: #fff; margin-top: 10px; border-radius: 4px; cursor: pointer; }
+        .zm-list-area { max-height: 150px; overflow-y: auto; margin-top: 15px; border-top: 1px solid #eee; display: none; }
+        .acc-row { font-size: 12px; padding: 5px 0; border-bottom: 1px solid #f9f9f9; color: #333; }
     `;
     document.head.appendChild(style);
 
-    const container = document.createElement('div');
-    container.innerHTML = `
-        <div id="gemini-floating-btn">QUẢN LÝ TÀI KHOẢN</div>
+    // Tạo HTML
+    const div = document.createElement('div');
+    div.innerHTML = `
+        <div id="gemini-btn">MENU TÀI KHOẢN</div>
         <div class="zm-overlay" id="zmOverlay">
-            <div class="zm-modal">
-                <div class="zm-header">
-                    <div class="zm-tab">Đăng ký</div>
-                    <div class="zm-link">Đã có tài khoản Zing</div>
+            <div class="zm-box">
+                <div class="zm-head">
+                    <div class="zm-tab-on">Đăng ký</div>
+                    <div class="zm-tab-off">Đã có tài khoản Zing</div>
                     <div class="zm-close" id="zmClose">✕</div>
                 </div>
                 <div class="zm-body">
-                    <input type="text" id="zmUser" class="zm-input" placeholder="Tài khoản">
-                    <input type="password" id="zmPass" class="zm-input" placeholder="Mật khẩu">
-                    <input type="password" id="zmRePass" class="zm-input" placeholder="Xác nhận mật khẩu">
-                    <button class="zm-btn btn-reg" id="zmSubmit">ĐĂNG KÝ NGAY</button>
-                    <button class="zm-btn btn-view" id="zmToggleList">XEM DANH SÁCH</button>
-                    <div class="zm-list" id="zmListArea"><div id="zmListContent"></div></div>
+                    <input type="text" id="u" class="zm-input" placeholder="Tài khoản">
+                    <input type="password" id="p" class="zm-input" placeholder="Mật khẩu">
+                    <input type="password" id="rp" class="zm-input" placeholder="Xác nhận mật khẩu">
+                    <button class="zm-btn-reg" id="doReg">Đăng ký</button>
+                    <button class="zm-btn-list" id="doView">Xem danh sách</button>
+                    <div class="zm-list-area" id="zmList"></div>
+                    <div style="margin-top:10px; font-size:11px; color:#888;">
+                        <input type="checkbox" checked> Tôi đồng ý với Điều khoản sử dụng
+                    </div>
                 </div>
             </div>
         </div>
     `;
-    document.body.appendChild(container);
+    document.body.appendChild(div);
 
+    // Logic xử lý
     const overlay = document.getElementById('zmOverlay');
-    document.getElementById('gemini-floating-btn').onclick = () => overlay.style.display = 'flex';
+    const listArea = document.getElementById('zmList');
+
+    document.getElementById('gemini-btn').onclick = () => overlay.style.display = 'flex';
     document.getElementById('zmClose').onclick = () => overlay.style.display = 'none';
-    document.getElementById('zmSubmit').onclick = () => {
-        const u = document.getElementById('zmUser').value;
-        const p = document.getElementById('zmPass').value;
-        if(!u || !p) return alert("Nhập đủ thông tin!");
-        let accs = JSON.parse(localStorage.getItem('my_zing_accs') || '[]');
-        accs.push({ u, p, d: new Date().toLocaleDateString() });
-        localStorage.setItem('my_zing_accs', JSON.stringify(accs));
-        alert("Đã lưu tài khoản vào danh sách!");
+
+    document.getElementById('doReg').onclick = () => {
+        const user = document.getElementById('u').value;
+        const pass = document.getElementById('p').value;
+        if(!user || !pass) return alert("Vui lòng nhập đủ thông tin!");
+        let data = JSON.parse(localStorage.getItem('zing_data') || '[]');
+        data.push({u: user, p: pass, t: new Date().toLocaleString()});
+        localStorage.setItem('zing_data', JSON.stringify(data));
+        alert("Đã lưu tài khoản thành công!");
+    };
+
+    document.getElementById('doView').onclick = () => {
+        listArea.style.display = listArea.style.display === 'block' ? 'none' : 'block';
+        const data = JSON.parse(localStorage.getItem('zing_data') || '[]');
+        listArea.innerHTML = data.map(i => `<div class="acc-row"><b>${i.u}</b> | ${i.p} (${i.t})</div>`).join('') || "Chưa có dữ liệu.";
     };
 })();
